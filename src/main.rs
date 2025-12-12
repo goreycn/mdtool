@@ -8,6 +8,9 @@ use which::which;
 struct Args {
     #[arg(value_name = "url")]
     input: String,
+
+    #[arg(short, long)]
+    force_model_scope: bool,
 }
 
 fn check_hf_cli() -> anyhow::Result<()> {
@@ -101,7 +104,7 @@ fn handle_modelscope(url: &str) -> anyhow::Result<()> {
     let suffix = "/file/view/master/";
 
     if !url.starts_with(prefix) || !url.contains(suffix) {
-        anyhow::bail!("不是一个有效的 hf 下载链接")
+        anyhow::bail!("不是一个有效的 modelscope 下载链接")
     }
 
     let rest = url.strip_prefix(prefix).context("去除前缀失败")?;
@@ -160,11 +163,26 @@ fn main() -> anyhow::Result<()> {
     println!("{}", args.input);
 
     let url = args.input;
+    let force_model_scope = args.force_model_scope;
 
     if url.contains("huggingface.co") {
         // https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors
-        handle_hf(&url)?
+        // https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union/resolve/main/Z-Image-Turbo-Fun-Controlnet-Union.safetensors
+        // https://modelscope.cn/models/Tongyi-MAI/Z-Image-Turbo/file/view/master/vae%2Fdiffusion_pytorch_model.safetensors?status=2
+        println!("hf url : {}", url);
+        if force_model_scope {
+            let proxy_url = url
+                .replace("huggingface.co", "modelscope.cn/models")
+                .replace("/resolve/main/", "/file/view/master/");
+            println!("proxy_url : {}", proxy_url);
+            handle_modelscope(&proxy_url)?;
+        } else {
+            // let proxy_url = url.replace("/resolve/main/", "");
+            handle_hf(&url)?
+        }
     } else if url.contains("modelscope.cn") {
+        // https://modelscope.cn/models/deepseek-ai/DeepSeek-V3.2/file/view/master/assets%2Fpaper.pdf?status=1
+        // https://modelscope.cn/models/deepseek-ai/DeepSeek-V3.2/resolve/master/assets/paper.pdf
         // https://modelscope.cn/models/deepseek-ai/DeepSeek-V3.2/file/view/master/assets%2Fpaper.pdf?status=1
         handle_modelscope(&url)?
     } else {
